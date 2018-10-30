@@ -40,7 +40,6 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zfgen.h"     /* RDG_genBuffer */
-#include "xxhash.h"
 #include "bench.h"
 #include "zstd_errors.h"
 
