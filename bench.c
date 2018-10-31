@@ -143,7 +143,7 @@ BMK_runOutcome_t BMK_benchFunction(
             size_t* blockResults,
             unsigned nbLoops)
 {
-    size_t dstSize = 0;
+    size_t sumOfReturn = 0;
 
     if(!nbLoops) {
         RETURN_QUIET_ERROR(2, BMK_runOutcome_t, "nbLoops must be nonzero ");
@@ -170,10 +170,10 @@ BMK_runOutcome_t BMK_benchFunction(
         for (loopNb = 0; loopNb < nbLoops; loopNb++) {
             for (blockNb = 0; blockNb < blockCount; blockNb++) {
                 size_t const res = benchFn(srcBlockBuffers[blockNb], srcBlockSizes[blockNb],
-                                    dstBlockBuffers[blockNb], dstBlockCapacities[blockNb],
-                                    benchPayload);
+                                           dstBlockBuffers[blockNb], dstBlockCapacities[blockNb],
+                                           benchPayload);
                 if (loopNb == 0) {
-                    dstSize += res;
+                    sumOfReturn += res;
                     if (blockResults != NULL) blockResults[blockNb] = res;
             }   }
         }  /* for (loopNb = 0; loopNb < nbLoops; loopNb++) */
@@ -181,7 +181,7 @@ BMK_runOutcome_t BMK_benchFunction(
         {   U64 const totalTime = UTIL_clockSpanNano(clockStart);
             BMK_runTime_t rt;
             rt.nanoSecPerRun = totalTime / nbLoops;
-            rt.sumOfReturn = dstSize;
+            rt.sumOfReturn = sumOfReturn;
             return BMK_setValid_runTime(rt);
     }   }
 }
