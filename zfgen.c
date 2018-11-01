@@ -8,7 +8,7 @@
  * Sequences : 6 bytes each : 1 - 1 - 4
  *             1 : literal length, required <= 16
  *             1 : match length, required <= 32
- *             4 : offset, required to stay within output buffer
+ *             4 : offset, required to stay within output buffer; must be >= 32
  * 16 MB : warm up data
  * Literals : remaining of compressed size
  *            note : sum of literal lengths must be >= nb literals
@@ -26,6 +26,7 @@
 #define MB   * (1<<20)
 #define WARMUP_SIZE  (16 MB)
 #define SEQ_SIZE 6
+#define OFFSET_MIN 32
 
 
 
@@ -33,6 +34,8 @@ gen_params init_gen_params(void )
 {
     gen_params params;
     params.cSize_max = 48 MB;
+    params.offset_min = 14 MB;
+    params.offset_max = 48 MB;
     return params;
 }
 
@@ -74,7 +77,7 @@ int randomVal(int min, int max)
     assert(min <= max);
     int variation = max - min;
     unsigned key = (unsigned)rand() * PRIME32_1;
-    return min + (key % variation);
+    return min + (key % (variation+1));
 }
 
 
@@ -84,11 +87,16 @@ static void MEM_writeLE32(void* p, int val)
 }
 
 
+#define MIN(a,b)   ((a) < (b) ? (a) : (b))
+#define MAX(a,b)   ((a) > (b) ? (a) : (b))
 
 buff generate(gen_params params)
 {
     assert(params.cSize_max > 16 MB);
     void* const outBuff = calloc(1, params.cSize_max); assert(outBuff != NULL);
+
+    int const offset_min = MAX(params.offset_min, OFFSET_MIN);
+    int const offset_max = params.offset_max;
 
     char* const ostart = outBuff;
     char* op = ostart;
@@ -109,7 +117,9 @@ buff generate(gen_params params)
         *op++ = (char)ml;
 
         // offset
-        int const offset = randomVal(12 MB, origSize);
+        assert(origSize > offset_min);
+        int const offmax = MIN(offset_max, origSize);
+        int const offset = randomVal(offset_min, offmax);
         MEM_writeLE32(op, offset); op+=4;
 
         origSize += ll + ml;
@@ -131,4 +141,9 @@ buff generate(gen_params params)
                     .size = op - (char*)outBuff
                   };
     return result;
+}
+
+void free_buff(buff buffer)
+{
+    free(buffer.buffer);
 }

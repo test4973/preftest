@@ -22,26 +22,31 @@ static size_t zfpref(const void* src, size_t srcSize, void* dst, size_t dstCapac
 }
 
 
-static int benchFunction(BMK_benchFn_t fn, void* payload, int nbSec)
+typedef struct {
+    BMK_benchFn_t fn;
+    void* payload;
+    buff srcBuffer;
+    int nbSecs;
+} benchfn_params;
+
+static int benchFunction(benchfn_params params)
 {
-    unsigned const total_ms = nbSec * 1000;
+    unsigned const total_ms = params.nbSecs * 1000;
     unsigned const run_ms = 1000;
     BMK_timedFnState_t* const benchState = BMK_createTimedFnState(total_ms, run_ms);
     assert(benchState != NULL);
 
-    gen_params gparams = init_gen_params();
-    buff sample = generate(gparams);
     size_t result;
-    size_t dstCapacity = decSize(sample.buffer, sample.size);
+    size_t dstCapacity = decSize(params.srcBuffer.buffer, params.srcBuffer.size);
     void* dstBuffer = malloc(dstCapacity); assert(dstBuffer != NULL);
     double bestSpeed = 0.0;
 
     while (!BMK_isCompleted_TimedFn(benchState)) {
         BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState,
-                                                    fn, payload,
+                                                    params.fn, params.payload,
                                                     NULL, NULL,
                                                     1,
-                                                    (const void* const*)&sample.buffer, &sample.size,
+                                                    (const void* const*)&params.srcBuffer.buffer, &params.srcBuffer.size,
                                                     &dstBuffer, &dstCapacity,
                                                     &result);
         BMK_runTime_t const runTime = BMK_extract_runTime(outcome);
@@ -62,12 +67,27 @@ static int benchFunction(BMK_benchFn_t fn, void* payload, int nbSec)
 
 static int bench(void)
 {
+    gen_params gparams = init_gen_params();
+    buff sample = generate(gparams);
+
     printf("Benchmarking zfdec (no prefetch) : \n");
-    benchFunction(zfdec,  NULL, 4);
+    {   benchfn_params params = { .fn = zfdec,
+                                  .payload = NULL,
+                                  .srcBuffer = sample,
+                                  .nbSecs = 4 };
+        benchFunction(params);
+    }
+
     for (int i=1; i<50; i++) {
         printf("Benchmarking zfpref, prefetch %i in advance \n", i);
-        benchFunction(zfpref, &i, 4);
+        benchfn_params params = { .fn = zfpref,
+                                  .payload = &i,
+                                  .srcBuffer = sample,
+                                  .nbSecs = 4 };
+        benchFunction(params);
     }
+
+    free_buff(sample);
     return 0;
 }
 
