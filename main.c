@@ -7,7 +7,10 @@
 #include "zfdec.h"   // decompress
 
 
-#define DISPLAY(...)  fprintf(stdout, __VA_ARGS__)
+/* =========================== */
+/* ***   Macro functions   *** */
+/* =========================== */
+#define DISPLAY(...)  { fprintf(stdout, __VA_ARGS__); fflush(stdout); }
 
 static size_t zfdec(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload) // type BMK_benchFn_t;
 {
