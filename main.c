@@ -65,38 +65,60 @@ static int benchFunction(benchfn_params params)
     return 0;
 }
 
-static int bench(int bench_nbSeconds)
+static int bench_variant(int prefetch_level, buff sample, int bench_nbSeconds)
+{
+    assert(prefetch_level >= 0);
+    if (prefetch_level == 0) {
+        printf("Benchmarking zfdec (no prefetch) : \n");
+        benchfn_params params = { .fn = zfdec,
+                                  .payload = NULL,
+                                  .srcBuffer = sample,
+                                  .nbSecs = bench_nbSeconds };
+        return benchFunction(params);
+    }
+
+    // prefetch_level > 0
+    printf("Benchmarking zfpref, prefetch %i in advance \n", prefetch_level);
+    benchfn_params params = { .fn = zfpref,
+                              .payload = &prefetch_level,
+                              .srcBuffer = sample,
+                              .nbSecs = bench_nbSeconds };
+    benchFunction(params);
+
+    return 0;
+}
+
+static int bench_once(int prefetch_level, int bench_nbSeconds)
 {
     gen_params gparams = init_gen_params();
     buff sample = generate(gparams);
 
-    printf("Benchmarking zfdec (no prefetch) : \n");
-    {   benchfn_params params = { .fn = zfdec,
-                                  .payload = NULL,
-                                  .srcBuffer = sample,
-                                  .nbSecs = bench_nbSeconds };
-        benchFunction(params);
-    }
+    assert(prefetch_level >= 0);
+    bench_variant(prefetch_level, sample, bench_nbSeconds);
 
-    for (int i=1; i<50; i++) {
-        printf("Benchmarking zfpref, prefetch %i in advance \n", i);
-        benchfn_params params = { .fn = zfpref,
-                                  .payload = &i,
-                                  .srcBuffer = sample,
-                                  .nbSecs = bench_nbSeconds };
-        benchFunction(params);
-    }
+    free_buff(sample);
+    return 0;
+}
+
+static int bench_all(int bench_nbSeconds)
+{
+    gen_params gparams = init_gen_params();
+    buff sample = generate(gparams);
+
+    for (int i = 0; i < 50; i++)
+        bench_variant(i, sample, bench_nbSeconds);
 
     free_buff(sample);
     return 0;
 }
 
 
+
+
 static void errorOut(const char* msg)
 {
     fprintf(stderr, "%s \n", msg); exit(1);
 }
-
 
 /*! readU32FromChar() :
  * @return : unsigned integer value read from input in `char` format.
@@ -130,21 +152,37 @@ static unsigned readU32FromChar(const char** stringPtr)
 int main(int argCount, const char* argv[])
 {
     unsigned bench_nbSeconds = 4;
+    int prefetch_level = -1;
+
     for (int argNb=1; argNb<argCount; argNb++) {
         const char* argument = argv[argNb];
         if (argument[0]=='-') {
             argument++;
             while (argument[0] != 0) {
                 switch(argument[0]) {
-                /* Modify Nb Iterations (benchmark only) */
+
+                /* Control bench time */
                 case 'i':
                     argument++;
                     bench_nbSeconds = readU32FromChar(&argument);
                     break;
+
+                /* Control prefetch level (single variant) */
+                case 'b':
+                    argument++;
+                    prefetch_level = readU32FromChar(&argument);
+                    break;
+
+                default : errorOut("bad command line \n");
+
                 }
-            }
+            }  //while (argument[0] != 0)
 
         }
-    }
-    return bench(bench_nbSeconds);
+    }  // for (int argNb=1; argNb<argCount; argNb++)
+
+    if (prefetch_level >= 0)
+        return bench_once(prefetch_level, bench_nbSeconds);
+
+    return bench_all(bench_nbSeconds);
 }
