@@ -21,11 +21,20 @@
 #include <stdlib.h>   // malloc, calloc
 #include <assert.h>
 
+#include "zfgen.h"
 
 #define MB   * (1<<20)
 #define WARMUP_SIZE  (16 MB)
 #define SEQ_SIZE 6
 
+
+
+gen_params init_gen_params(void )
+{
+    gen_params params;
+    params.cSize_max = 48 MB;
+    return params;
+}
 
 
 static int gen_d50_0_16(void)
@@ -76,15 +85,10 @@ static void MEM_writeLE32(void* p, int val)
 
 
 
-typedef struct {
-    void* buffer;
-    size_t size;
-} buff;
-
-buff generate()
+buff generate(gen_params params)
 {
-#define CSIZE_MAX (48 MB)
-    void* const outBuff = calloc(1, CSIZE_MAX); assert(outBuff != NULL);
+    assert(params.cSize_max > 16 MB);
+    void* const outBuff = calloc(1, params.cSize_max); assert(outBuff != NULL);
 
     char* const ostart = outBuff;
     char* op = ostart;
@@ -116,7 +120,7 @@ buff generate()
     // add warmup, then literals
     op += WARMUP_SIZE;
     cSize += WARMUP_SIZE;
-    assert(cSize < CSIZE_MAX);
+    assert(cSize < params.cSize_max);
     op += litSize;
 
     MEM_writeLE32(origSizePtr, origSize);

@@ -29,7 +29,8 @@ static int benchFunction(BMK_benchFn_t fn, void* payload, int nbSec)
     BMK_timedFnState_t* const benchState = BMK_createTimedFnState(total_ms, run_ms);
     assert(benchState != NULL);
 
-    buff sample = generate();
+    gen_params gparams = init_gen_params();
+    buff sample = generate(gparams);
     size_t result;
     size_t dstCapacity = decSize(sample.buffer, sample.size);
     void* dstBuffer = malloc(dstCapacity); assert(dstBuffer != NULL);
