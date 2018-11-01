@@ -37,11 +37,8 @@
 #include <assert.h>      /* assert */
 
 #include "mem.h"
-#define ZSTD_STATIC_LINKING_ONLY
-#include "zstd.h"
 #include "zfgen.h"     /* RDG_genBuffer */
 #include "bench.h"
-#include "zstd_errors.h"
 
 
 /* *************************************
