@@ -157,6 +157,7 @@ size_t decompress_pref(void* dst, size_t dstCapacity,
             assert(nextoffset <= vpos);
             int const nextpos = vpos - nextoffset;
             prefetch_L1(ostart + nextpos);
+            prefetch_L1(ostart + nextpos + 31);
             //printf("prefetching %i \n", nextpos);
         }
         vpos += seqPtr[seqOffset+1];
