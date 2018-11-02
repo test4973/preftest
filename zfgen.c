@@ -90,13 +90,21 @@ static void MEM_writeLE32(void* p, int val)
 #define MIN(a,b)   ((a) < (b) ? (a) : (b))
 #define MAX(a,b)   ((a) > (b) ? (a) : (b))
 
+typedef struct {
+    int offset_min;
+    int offset_max;
+} offset_limit;
+
 buff generate(gen_params params)
 {
     assert(params.cSize_max > 16 MB);
     void* const outBuff = calloc(1, params.cSize_max); assert(outBuff != NULL);
 
-    int const offset_min = MAX(params.offset_min, OFFSET_MIN);
-    int const offset_max = params.offset_max;
+#define OFL_TABLE_SIZE 2
+    offset_limit ofl_table[OFL_TABLE_SIZE] =
+            { { MAX(params.offset_min, OFFSET_MIN) , params.offset_max },
+              { OFFSET_MIN, 16384 },
+            };
 
     char* const ostart = outBuff;
     char* op = ostart;
@@ -109,6 +117,7 @@ buff generate(gen_params params)
     int litSize = 0;
 
     int const nbSeqMax = 16 MB / SEQ_SIZE;
+    int offset_id = 0;
     for (int seqNb = 0; seqNb < nbSeqMax; seqNb++) {
         int ll = gen_d50_0_16();
         int ml = gen_d12_3_32();
@@ -117,9 +126,10 @@ buff generate(gen_params params)
         *op++ = (char)ml;
 
         // offset
-        assert(origSize > offset_min);
-        int const offmax = MIN(offset_max, origSize);
-        int const offset = randomVal(offset_min, offmax);
+        offset_limit ofl = ofl_table[offset_id]; offset_id = (offset_id + 1) % OFL_TABLE_SIZE;
+        assert(origSize > ofl.offset_min);
+        int const offmax = MIN(ofl.offset_max, origSize);
+        int const offset = randomVal(ofl.offset_min, offmax);
         MEM_writeLE32(op, offset); op+=4;
 
         origSize += ll + ml;
