@@ -100,11 +100,15 @@ buff generate(gen_params params)
     assert(params.cSize_max > 16 MB);
     void* const outBuff = calloc(1, params.cSize_max); assert(outBuff != NULL);
 
-#define OFL_TABLE_SIZE 2
-    offset_limit ofl_table[OFL_TABLE_SIZE] =
-            { { MAX(params.offset_min, OFFSET_MIN) , params.offset_max },
-              { OFFSET_MIN, 16384 },
-            };
+#define OFL_ROUND 1
+#define OFL_TABLE_SIZE 8
+static_assert(OFL_TABLE_SIZE >= OFL_ROUND, "");
+    offset_limit ofl_table[OFL_TABLE_SIZE];
+    offset_limit const short_offset = { OFFSET_MIN, 16384 };
+    for (int i=0; i < OFL_TABLE_SIZE; i++)
+        ofl_table[i] = short_offset;
+    ofl_table[0] = (offset_limit){ MAX(params.offset_min, OFFSET_MIN) , params.offset_max };
+
 
     char* const ostart = outBuff;
     char* op = ostart;
@@ -126,7 +130,7 @@ buff generate(gen_params params)
         *op++ = (char)ml;
 
         // offset
-        offset_limit ofl = ofl_table[offset_id]; offset_id = (offset_id + 1) % OFL_TABLE_SIZE;
+        offset_limit ofl = ofl_table[offset_id]; offset_id = (offset_id + 1) % OFL_ROUND;
         assert(origSize > ofl.offset_min);
         int const offmax = MIN(ofl.offset_max, origSize);
         int const offset = randomVal(ofl.offset_min, offmax);

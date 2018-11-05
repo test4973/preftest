@@ -30,6 +30,7 @@ typedef struct {
     void* payload;
     buff srcBuffer;
     int nbSecs;
+    int nbPrefetchs;
 } benchfn_params;
 
 static int benchFunction(benchfn_params params)
@@ -60,7 +61,8 @@ static int benchFunction(benchfn_params params)
         double const bytePerSec = bytePerNs * 1000000000;
         double const MBperSec = bytePerSec / 1000000;
         if (MBperSec > bestSpeed) bestSpeed = MBperSec;
-        DISPLAY("\rdecompression speed : %.1f MB/s    --  %i byte \r", bestSpeed, (int)runTime.sumOfReturn);
+        DISPLAY("\r%2i prefetchs - dec speed = %.1f MB/s    --  %i byte \r",
+                params.nbPrefetchs, bestSpeed, (int)runTime.sumOfReturn);
     }
     DISPLAY("\n");
 
@@ -72,20 +74,20 @@ static int bench_variant(int prefetch_level, buff sample, int bench_nbSeconds)
 {
     assert(prefetch_level >= 0);
     if (prefetch_level == 0) {
-        printf("Benchmarking zfdec (no prefetch) : \n");
         benchfn_params params = { .fn = zfdec,
                                   .payload = NULL,
                                   .srcBuffer = sample,
-                                  .nbSecs = bench_nbSeconds };
+                                  .nbSecs = bench_nbSeconds,
+                                  .nbPrefetchs = 0 };
         return benchFunction(params);
     }
 
     // prefetch_level > 0
-    printf("Benchmarking zfpref, prefetch %i in advance \n", prefetch_level);
     benchfn_params params = { .fn = zfpref,
                               .payload = &prefetch_level,
                               .srcBuffer = sample,
-                              .nbSecs = bench_nbSeconds };
+                              .nbSecs = bench_nbSeconds,
+                              .nbPrefetchs = prefetch_level };
     benchFunction(params);
 
     return 0;
