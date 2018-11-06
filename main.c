@@ -1,5 +1,6 @@
 #include <stdlib.h>   // malloc
 #include <stdio.h>    // fprintf
+#include <string.h>   // memcpy
 #include <assert.h>
 
 #include "bench.h"   // BMK_*
@@ -22,6 +23,14 @@ static size_t zfpref(const void* src, size_t srcSize, void* dst, size_t dstCapac
 {
     int const nbRounds = *(int*)customPayload;
     return decompress_pref(dst, dstCapacity, src, srcSize, nbRounds);
+}
+
+static size_t zfstat(const void* src, size_t srcSize, void* dst, size_t dstCapacity, void* customPayload) // type BMK_benchFn_t;
+{
+    (void)dst; (void)dstCapacity;
+    frame_stats const stats = collect_stats(src, srcSize);
+    memcpy(customPayload, &stats, sizeof(stats));
+    return 0;
 }
 
 
@@ -117,6 +126,34 @@ static int bench_all(int bench_nbSeconds)
     return 0;
 }
 
+static int visualize_stats(void)
+{
+    gen_params gparams = init_gen_params();
+    buff sample = generate(gparams);
+
+    frame_stats stats;
+    benchfn_params params = { .fn = zfstat,
+                              .payload = &stats,
+                              .srcBuffer = sample,
+                              .nbSecs = 1,
+                              .nbPrefetchs = 0 };
+    benchFunction(params);
+
+    unsigned const nb_sequences = (unsigned)stats.nb_sequences;
+    DISPLAY("nb sequences : %5u \n", nb_sequences);
+    size_t const total_sequence_length = stats.original_size  - stats.literal_leftover;
+    double const average_sequence_length = (double)total_sequence_length / nb_sequences;
+    DISPLAY("average sequences length : %5.1f \n", average_sequence_length);
+    double const average_match_length = (double)stats.total_match_lengths / nb_sequences;
+    DISPLAY("average match length : %5.1f \n", average_match_length);
+    double const average_literal_length = (double)stats.total_literal_lengths / nb_sequences;
+    DISPLAY("average literal length : %5.1f \n", average_literal_length);
+    DISPLAY("minimum offset : %6u \n", (unsigned)stats.offset_min);
+    DISPLAY("maximum offset : %6u \n", (unsigned)stats.offset_max);
+
+    free_buff(sample);
+    return 0;
+}
 
 
 
@@ -185,6 +222,9 @@ int main(int argCount, const char* argv[])
 
         }
     }  // for (int argNb=1; argNb<argCount; argNb++)
+
+    if (prefetch_level == 999)
+        return visualize_stats();
 
     if (prefetch_level >= 0)
         return bench_once(prefetch_level, bench_nbSeconds);

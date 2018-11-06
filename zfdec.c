@@ -196,3 +196,82 @@ size_t decompress_pref(void* dst, size_t dstCapacity,
     //printf("dec size = %i \n", (int)(op - ostart) - PREFIX_SIZE);
     return (size_t)(op - ostart) - PREFIX_SIZE;
 }
+
+
+
+
+frame_stats collect_stats(const void* src, size_t srcSize)
+{
+    frame_stats result;
+    const char* ip = src;
+
+    size_t const original_size = MEM_readLE32(ip); ip += 4;
+    result.original_size = original_size;
+
+    size_t const compressed_size = MEM_readLE32(ip); ip += 4;
+    assert(srcSize == compressed_size);
+    result.compressed_size = compressed_size;
+
+    int const nbSeqs = MEM_readLE32(ip); ip += 4;
+    result.nb_sequences = nbSeqs;
+    const char* seqPtr = ip;
+    ip += nbSeqs * SEQSIZE;
+
+    /* skip warm up data */
+    ip += PREFIX_SIZE;
+    size_t literal_leftover = PREFIX_SIZE;
+    size_t total_literals_lengths = 0;
+    size_t literal_length_min = original_size;
+    size_t literal_length_max = 0;
+    size_t total_match_lengths = 0;
+    size_t match_length_min = original_size;
+    size_t match_length_max = 0;
+    size_t offset_min = original_size;
+    size_t offset_max = 0;
+
+
+    const char* litPtr = ip;
+    const char* const litEnd = (const char*)src + srcSize;
+
+    for (int seqNb = 0 ; seqNb < nbSeqs ; seqNb++) {  // sequences
+        // take commands
+        size_t const literal_length = *seqPtr++;
+        size_t const match_length = *seqPtr++;
+        size_t const offset = MEM_readLE32(seqPtr); seqPtr += 4;
+
+        // start with literals
+        assert(literal_length <= 16);
+        assert(litEnd >= litPtr);
+        assert(literal_length <= (litEnd - litPtr));
+        litPtr += literal_length;
+        total_literals_lengths += literal_length;
+        if (literal_length > literal_length_max) literal_length_max = literal_length;
+        if (literal_length < literal_length_min) literal_length_min = literal_length;
+
+        // match
+        assert(offset >= 32);
+        assert(match_length <= 32);
+        total_match_lengths += match_length;
+        if (match_length > match_length_max) match_length_max = match_length;
+        if (match_length < match_length_min) match_length_min = match_length;
+        if (offset > offset_max) offset_max = offset;
+        if (offset < offset_min) offset_min = offset;
+    }
+
+    // last literals
+    assert(litPtr <= litEnd);
+    size_t const nbLastLiterals = (size_t)(litPtr - litEnd);
+    literal_leftover += nbLastLiterals;
+
+    result.total_literal_lengths = total_literals_lengths;
+    result.literal_length_min = literal_length_min;
+    result.literal_length_max = literal_length_max;
+    result.literal_leftover = literal_leftover;
+    result.total_match_lengths = total_match_lengths;
+    result.match_length_max = match_length_max;
+    result.match_length_min = match_length_min;
+    result.offset_min = offset_min;
+    result.offset_max = offset_max;
+
+    return result;
+}
