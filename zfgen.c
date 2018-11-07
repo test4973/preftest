@@ -19,6 +19,7 @@
 
 #include <stddef.h>   // size_t
 #include <stdlib.h>   // malloc, calloc
+#include <stdio.h>    // printf
 #include <assert.h>
 
 #include "zfgen.h"
@@ -108,6 +109,8 @@ static_assert(OFL_TABLE_SIZE >= OFL_ROUND, "");
     for (int i=0; i < OFL_TABLE_SIZE; i++)
         ofl_table[i] = short_offset;
     ofl_table[0] = (offset_limit){ MAX(params.offset_min, OFFSET_MIN) , params.offset_max };
+    printf("using offset distances between %i and %i, with a period of %i \n",
+            ofl_table[0].offset_min, ofl_table[0].offset_max, OFL_ROUND);
 
 
     char* const ostart = outBuff;
